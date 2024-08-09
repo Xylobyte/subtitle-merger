@@ -1,3 +1,86 @@
-fn main() {
-    println!("Hello, world!");
+use clap::Parser;
+use std::fs::File;
+use std::io::{BufRead, BufReader};
+
+/// Simple tool to merge two WebVTT transcripts into one with speakers names
+#[derive(Parser, Debug)]
+#[command(version, about, long_about = None)]
+struct Cli {
+    /// The first transcript
+    file1: String,
+
+    /// The speaker name for the first transcript
+    #[arg(long = "s1", default_value = None)]
+    file1speaker: Option<String>,
+
+    /// The second transcript
+    file2: String,
+
+    /// The speaker name for the second transcript
+    #[arg(long = "s2", default_value = None)]
+    file2speaker: Option<String>,
+}
+
+fn main() -> Result<(), String> {
+    let args = Cli::parse();
+
+    let file1 = File::open(&args.file1).map_err(|_| "Could not open ".to_string() + &args.file1)?;
+    let file2 = File::open(&args.file2).map_err(|_| "Could not open ".to_string() + &args.file2)?;
+
+    let mut reader1 = BufReader::new(file1);
+    let mut reader2 = BufReader::new(file2);
+
+    let mut buff1 = String::new();
+    let mut buff2 = String::new();
+
+    for _ in 0..2 {
+        reader1.read_line(&mut buff1).map_err(|_| "Could not read transcript files")?;
+        reader2.read_line(&mut buff2).map_err(|_| "Could not read transcript files")?;
+    }
+
+    if buff1.trim() != "WEBVTT" || buff2.trim() != "WEBVTT" {
+        return Err("Transcripts are not in WebVTT format".to_string());
+    }
+
+    let mut final_blocks: Vec<(String, String)> = Vec::new();
+
+    for (i, reader) in [&mut reader1, &mut reader2].iter_mut().enumerate() {
+        let mut line_buff = String::new();
+
+        let mut in_clue: Option<String> = None;
+        let mut transcript_text = String::new();
+
+        let mut actual_index = 0;
+
+        while reader.read_line(&mut line_buff).map_err(|_| "Could not read transcript files")? != 0 {
+            if line_buff.trim().is_empty() {
+                if i == 0 {
+                    if let Some(clue) = &in_clue {
+                        final_blocks.push((clue.clone(), transcript_text.trim().parse().unwrap()));
+                    }
+                } else {
+                    // TODO
+                }
+
+                in_clue = None;
+                transcript_text.clear();
+            } else if line_buff.contains("-->") {
+                in_clue = Some(line_buff.trim().to_string());
+            } else if in_clue.is_some() {
+                transcript_text.push_str(&line_buff);
+            }
+
+            line_buff.clear();
+        }
+
+        if let Some(clue) = &in_clue {
+            final_blocks.push((clue.clone(), transcript_text.trim().parse().unwrap()));
+        }
+    }
+
+    for (clue, transcript) in final_blocks {
+        println!("{}: {:?}", clue, transcript);
+    }
+
+    Ok(())
 }
