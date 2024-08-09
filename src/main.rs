@@ -10,7 +10,7 @@ struct Cli {
     file1: String,
 
     /// The speaker name for the first transcript
-    #[arg(long = "s1", default_value = None)]
+    #[clap(long = "s1", default_value = None)]
     file1speaker: Option<String>,
 
     /// The second transcript
@@ -19,6 +19,18 @@ struct Cli {
     /// The speaker name for the second transcript
     #[arg(long = "s2", default_value = None)]
     file2speaker: Option<String>,
+
+    /// Remove comment subtitles
+    #[clap(long = "rm-comment-sub", default_value_t = false)]
+    remove_comment_subtitles: bool,
+}
+
+fn get_clue_number(clue: &str) -> usize {
+    clue.split(" --> ").into_iter().next().unwrap()
+        .replace(":", "")
+        .replace(".", "")
+        .parse::<usize>()
+        .unwrap()
 }
 
 fn main() -> Result<(), String> {
@@ -54,12 +66,29 @@ fn main() -> Result<(), String> {
 
         while reader.read_line(&mut line_buff).map_err(|_| "Could not read transcript files")? != 0 {
             if line_buff.trim().is_empty() {
-                if i == 0 {
-                    if let Some(clue) = &in_clue {
-                        final_blocks.push((clue.clone(), transcript_text.trim().parse().unwrap()));
+                let ttt = transcript_text.trim();
+                if ttt.starts_with("[") && ttt.ends_with("]") && ttt.len() > 2 && args.remove_comment_subtitles {
+                    println!("Comment ignored: {}", ttt);
+                } else if let Some(clue) = &in_clue {
+                    let el = (clue.clone(), transcript_text.trim().parse().unwrap());
+                    if i == 0 {
+                        final_blocks.push(el);
+                    } else {
+                        let actual_clue = get_clue_number(&clue);
+                        loop {
+                            let base_clue = get_clue_number(&final_blocks[actual_index].0);
+
+                            if actual_clue <= base_clue {
+                                final_blocks.insert(actual_index, el);
+                                break;
+                            } else if actual_index == final_blocks.len() - 1 {
+                                final_blocks.push(el);
+                                break;
+                            } else {
+                                actual_index += 1;
+                            }
+                        }
                     }
-                } else {
-                    // TODO
                 }
 
                 in_clue = None;
