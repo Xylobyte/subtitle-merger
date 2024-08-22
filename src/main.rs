@@ -1,6 +1,6 @@
 use clap::Parser;
 use std::fs::File;
-use std::io::{BufRead, BufReader};
+use std::io::{BufRead, BufReader, Write};
 
 /// Simple tool to merge two WebVTT transcripts into one with speakers names
 #[derive(Parser, Debug)]
@@ -19,6 +19,9 @@ struct Cli {
     /// The speaker name for the second transcript
     #[arg(long = "s2", default_value = None)]
     file2speaker: Option<String>,
+
+    /// The output file without extension
+    output: String,
 
     /// Remove comment subtitles
     #[clap(long = "rm-comment-sub", default_value_t = false)]
@@ -64,13 +67,19 @@ fn main() -> Result<(), String> {
 
         let mut actual_index = 0;
 
+        let name_tag = if let Some(name1) = if i == 0 { &args.file1speaker } else { &args.file2speaker } {
+            format!("<v {}>", name1)
+        } else {
+            "".parse().unwrap()
+        };
+
         while reader.read_line(&mut line_buff).map_err(|_| "Could not read transcript files")? != 0 {
             if line_buff.trim().is_empty() {
                 let ttt = transcript_text.trim();
                 if ttt.starts_with("[") && ttt.ends_with("]") && ttt.len() > 2 && args.remove_comment_subtitles {
                     println!("Comment ignored: {}", ttt);
                 } else if let Some(clue) = &in_clue {
-                    let el = (clue.clone(), transcript_text.trim().parse().unwrap());
+                    let el = (clue.clone(), format!("{} {}", name_tag, transcript_text.trim()));
                     if i == 0 {
                         final_blocks.push(el);
                     } else {
@@ -103,13 +112,20 @@ fn main() -> Result<(), String> {
         }
 
         if let Some(clue) = &in_clue {
-            final_blocks.push((clue.clone(), transcript_text.trim().parse().unwrap()));
+            final_blocks.push((clue.clone(), format!("{} {}", name_tag, transcript_text.trim())));
         }
     }
 
+    let mut output_file = File::create(format!("{}.vtt", &args.output)).map_err(|_| format!("Could not create file {}.vtt", &args.output))?;
+    let mut final_buff = String::new();
+
+    println!();
     for (clue, transcript) in final_blocks {
-        println!("{}: {:?}", clue, transcript);
+        final_buff.push_str(format!("{}\n{}\n\n", clue, transcript).as_str());
     }
+
+    println!("{}", final_buff);
+    output_file.write_all(format!("WEBVTT\n\n{}", final_buff).as_ref()).map_err(|_| "Could not write in the file")?;
 
     Ok(())
 }
