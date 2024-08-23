@@ -76,7 +76,8 @@ fn main() -> Result<(), String> {
         while reader.read_line(&mut line_buff).map_err(|_| "Could not read transcript files")? != 0 {
             if line_buff.trim().is_empty() {
                 let ttt = transcript_text.trim();
-                if ttt.starts_with("[") && ttt.ends_with("]") && ttt.len() > 2 && args.remove_comment_subtitles {
+                if (ttt.starts_with("[") && ttt.ends_with("]")) || (ttt.starts_with("*") && ttt.ends_with("*"))
+                    && ttt.len() > 2 && args.remove_comment_subtitles {
                     println!("Comment ignored: {}", ttt);
                 } else if let Some(clue) = &in_clue {
                     let el = (clue.clone(), format!("{} {}", name_tag, transcript_text.trim()));
