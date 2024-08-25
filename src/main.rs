@@ -78,7 +78,7 @@ fn main() -> Result<(), String> {
                 let ttt = transcript_text.trim();
                 if (ttt.starts_with("[") && ttt.ends_with("]")) || (ttt.starts_with("*") && ttt.ends_with("*"))
                     && ttt.len() > 2 && args.remove_comment_subtitles {
-                    println!("Comment ignored: {}", ttt);
+                    // Ignore
                 } else if let Some(clue) = &in_clue {
                     let el = (clue.clone(), format!("{} {}", name_tag, transcript_text.trim()));
                     if i == 0 {
