@@ -5,7 +5,7 @@ A simple tool to merge two vtt file into one with multi speakers
 ## Usage
 
 ```shell
-% ./target/debug/subtitle-merger -h      
+% subtitle-merger -h      
                                          
 Simple tool to merge two WebVTT transcripts into one with speakers names
 
